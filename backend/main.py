@@ -18,12 +18,29 @@ if PROJECT_ROOT not in sys.path:
 from backend import database
 from backend import ai_agent
 from backend import calendar_service
+from backend import prayer_service
 
 app = FastAPI(
     title="SmartTask AI",
     description="Aqlli Vazifalar Boshqaruvi va AI Tahliliy Hisobotlar Tizimi",
     version="1.0.0"
 )
+
+@app.on_event("startup")
+def on_startup():
+    database.init_db()
+    # Samarqand namoz vaqtlarini bugungi kunga avtomatik kiritish
+    try:
+        prayer_service.auto_schedule_samarkand_prayers()
+    except Exception as e:
+        print(f"Prayer auto-scheduling error: {e}")
+
+    # Render avtomatik bergan URL-ni bazaga saqlash (Mini App uchun)
+    render_url = os.environ.get("RENDER_EXTERNAL_URL", "").strip()
+    if render_url and render_url.lower().startswith("https://"):
+        existing = database.get_setting("web_app_url", "").strip()
+        if not existing:
+            database.set_setting("web_app_url", render_url)
 
 app.add_middleware(
     CORSMiddleware,
@@ -561,6 +578,25 @@ def get_task_google_calendar_url(task_id: int):
         raise HTTPException(status_code=404, detail="Vazifa topilmadi")
     url = calendar_service.generate_google_calendar_url(task)
     return {"task_id": task_id, "google_calendar_url": url}
+
+
+# ---------------- Samarqand Namoz Vaqtlari API ----------------
+@app.get("/api/prayer/timings")
+def get_prayer_timings(date_str: Optional[str] = Query(None, alias="date")):
+    target = date_str or date.today().strftime("%Y-%m-%d")
+    timings = prayer_service.fetch_samarkand_prayer_times(target)
+    return {"city": "Samarkand", "date": target, "timings": timings}
+
+
+@app.post("/api/prayer/sync")
+def sync_prayer_tasks(date_str: Optional[str] = Query(None, alias="date")):
+    target = date_str or date.today().strftime("%Y-%m-%d")
+    created = prayer_service.auto_schedule_samarkand_prayers(target)
+    return {
+        "message": "Samarqand namoz vaqtlari avtonom sinxronlandi",
+        "created_count": len(created),
+        "date": target
+    }
 
 
 # Static Files & Frontend SPA

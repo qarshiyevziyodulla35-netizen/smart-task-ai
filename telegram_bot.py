@@ -19,6 +19,7 @@ if sys.platform == "win32":
 from backend import database
 from backend import ai_agent
 from backend import calendar_service
+from backend import prayer_service
 
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, MenuButtonWebApp, MenuButtonCommands, MenuButtonDefault
 from telegram.ext import (
@@ -45,6 +46,22 @@ def get_bot_token() -> str:
         return token.strip()
     # 2. Check environment variable
     return os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+
+
+def get_web_app_url() -> str:
+    # 1. Database setting
+    url = database.get_setting("web_app_url", "").strip()
+    if url and url.lower().startswith("https://"):
+        return url
+    # 2. Environment variable
+    url = os.environ.get("WEB_APP_URL", "").strip()
+    if url and url.lower().startswith("https://"):
+        return url
+    # 3. Render automatic public domain
+    url = os.environ.get("RENDER_EXTERNAL_URL", "").strip()
+    if url and url.lower().startswith("https://"):
+        return url
+    return ""
 
 
 async def safe_reply(update: Update, text: str, reply_markup=None):
@@ -98,23 +115,26 @@ Siz menga to'g'ridan-to'g'ri yozishingiz mumkin:
 💧 **Suv Nazorati:**
 - `/suv` — +250ml suv qo'shish
 
-📊 **Hisobotlar va Kalendar:**
+📊 **Hisobotlar, Namoz va Kalendar:**
 - `/bugun` — Bugungi vazifalar va kaloriya balansi
+- `/namoz` — Samarqand namoz vaqtlari (5 vaqt)
 - `/kalendar` — Vazifalarni telefon kalendariga ulash (.ics)
 - `/eslatma` — Bildirishnomalar holati
+- `/ilova` — Mini App veb-ilovasini ochish
 - `/haftalik` — Haftalik unumdorlik tahlili
 - `/yordam` — Barcha buyruqlar ro'yxati
 """
-    web_app_url = database.get_setting("web_app_url", "").strip()
+    web_app_url = get_web_app_url()
     keyboard = None
-    # Telegram faqat https:// havolalarni qabul qiladi
-    if web_app_url and web_app_url.lower().startswith("https://"):
+    if web_app_url:
         try:
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("📱 SmartTask Ilovasini Ochish", web_app=WebAppInfo(url=web_app_url))]
             ])
         except Exception as e:
             logger.warning(f"Keyboard yaratishda xatolik: {e}")
+    else:
+        welcome_text += "\n💡 *Telegram ichida saytni ochish uchun: saytingiz havolasini `/set_url https://...` orqali botga yuboring!*"
 
     await safe_reply(update, welcome_text, reply_markup=keyboard)
 
@@ -380,6 +400,77 @@ Ushbu kalendar fayli orqali barcha vazifalaringizni telefoningiz (iPhone / Andro
         logger.error(f"Kalendar faylini yuborishda xatolik: {e}")
 
 
+async def namoz_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Samarqand namoz vaqtlarini ko'rsatish va kunlik tasklarga avtonom kiritish."""
+    today_str = date.today().strftime("%Y-%m-%d")
+    timings = prayer_service.fetch_samarkand_prayer_times(today_str)
+    prayer_service.auto_schedule_samarkand_prayers(today_str)
+
+    text = f"""🕌 **Samarqand Shahri Uchun Namoz Vaqtlari ({today_str})**
+
+🌅 **Bomdod:** `{timings.get('Bomdod')}`
+☀️ **Peshin:** `{timings.get('Peshin')}`
+⛅ **Asr:** `{timings.get('Asr')}`
+🌇 **Shom:** `{timings.get('Shom')}`
+🌙 **Xufton:** `{timings.get('Xufton')}`
+
+✅ *Barcha 5 vaqt namoz avtonom tarzda bugungi vazifalar doskangizga kiritildi.*
+*Har bir namoz vaqti yetganda bot sizga eslatma yuboradi hamda telefoningiz kalendarida 15 daqiqa oldin budilnik chaladi!*"""
+    await safe_reply(update, text)
+
+
+async def app_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Telegram ichida Mini App veb-saytini ochish."""
+    url = get_web_app_url()
+    if not url:
+        await safe_reply(
+            update,
+            "⚠️ **Mini App havolasi hali sozlanmagan!**\n\n"
+            "Saytingizning Render bergan HTTPS havolasini botga yuboring:\n"
+            "👉 `/set_url https://smart-task-ai-xxxx.onrender.com`\n\n"
+            "Shundan so'ng pastdagi «📱 Ilova» tugmasi darhol faollashadi!"
+        )
+        return
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📱 SmartTask Ilovasini Ochish", web_app=WebAppInfo(url=url))]
+    ])
+    await safe_reply(update, "SmartTask AI ilovasini Telegram oynasida ochish uchun pastdagi tugmani bosing:", reply_markup=keyboard)
+
+
+async def set_url_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mini App veb-sayt havolasini tezkor sozlash."""
+    args = context.args
+    if not args or not args[0].strip().lower().startswith("https://"):
+        await safe_reply(
+            update,
+            "Iltimos, to'liq HTTPS havolani kiriting.\n"
+            "Masalan: `/set_url https://smart-task-ai-xxxx.onrender.com`"
+        )
+        return
+
+    new_url = args[0].strip().rstrip("/")
+    database.set_setting("web_app_url", new_url)
+
+    try:
+        await context.bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(text="📱 Ilova", web_app=WebAppInfo(url=new_url))
+        )
+    except Exception as e:
+        logger.warning(f"Set menu button error: {e}")
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📱 SmartTask Ilovasini Ochish", web_app=WebAppInfo(url=new_url))]
+    ])
+    await safe_reply(
+        update,
+        f"✅ **Mini App havolasi muvaffaqiyatli saqlandi!**\n\n"
+        f"🔗 Manzil: `{new_url}`\n\n"
+        f"Pastki chap burchakdagi **«📱 Ilova»** tugmasi va quyidagi tugma orqali ilovani to'g'ridan-to'g'ri Telegramda ochishingiz mumkin.",
+        reply_markup=keyboard
+    )
+
+
 async def notification_worker(application):
     logger.info("Notification worker background oqimi ishga tushdi...")
     last_morning_date = None
@@ -391,6 +482,13 @@ async def notification_worker(application):
             now = datetime.now()
             today_str = now.strftime("%Y-%m-%d")
             current_time_str = now.strftime("%H:%M")
+
+            # 0. Har kuni avtonom tarzda Samarqand namoz vaqtlarini kiritish
+            try:
+                prayer_service.auto_schedule_samarkand_prayers(today_str)
+            except Exception as pe:
+                logger.error(f"Prayer auto-scheduling error: {pe}")
+
             subscribers = database.get_active_telegram_subscribers()
 
             if subscribers:
@@ -516,11 +614,17 @@ def main():
     print("=" * 60)
 
     async def post_init(application):
+        # Namoz vaqtlarini avtonom tarzda birinchi navbatda kiritish
+        try:
+            prayer_service.auto_schedule_samarkand_prayers()
+        except Exception as e:
+            logger.warning(f"Initial prayer schedule error: {e}")
+
         # Background notification worker ni ishga tushirish
         asyncio.create_task(notification_worker(application))
 
-        web_app_url = database.get_setting("web_app_url", "").strip()
-        if web_app_url and web_app_url.lower().startswith("https://"):
+        web_app_url = get_web_app_url()
+        if web_app_url:
             try:
                 await application.bot.set_chat_menu_button(
                     menu_button=MenuButtonWebApp(text="📱 Ilova", web_app=WebAppInfo(url=web_app_url))
@@ -548,6 +652,11 @@ def main():
     app.add_handler(CommandHandler("eslatma", reminder_command))
     app.add_handler(CommandHandler("kalendar", kalendar_command))
     app.add_handler(CommandHandler("calendar", kalendar_command))
+    app.add_handler(CommandHandler("namoz", namoz_command))
+    app.add_handler(CommandHandler("namaz", namoz_command))
+    app.add_handler(CommandHandler("ilova", app_command))
+    app.add_handler(CommandHandler("app", app_command))
+    app.add_handler(CommandHandler("set_url", set_url_command))
 
     app.add_handler(CallbackQueryHandler(handle_callback_query))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))

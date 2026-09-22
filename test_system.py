@@ -276,6 +276,32 @@ class TestSmartTaskAI(unittest.TestCase):
         subs = database.get_active_telegram_subscribers()
         self.assertIn(test_chat_id, subs)
 
+    def test_14_samarkand_prayer_service(self):
+        from backend import prayer_service
+        # Test fetching timings
+        timings = prayer_service.fetch_samarkand_prayer_times()
+        for p in ["Bomdod", "Peshin", "Asr", "Shom", "Xufton"]:
+            self.assertIn(p, timings)
+            self.assertEqual(len(timings[p]), 5)  # HH:MM format
+
+        # Test auto scheduling tasks
+        created = prayer_service.auto_schedule_samarkand_prayers()
+        # Verify tasks created in database
+        today = date.today().strftime("%Y-%m-%d")
+        tasks = database.list_tasks(date_filter=today, category="Ibodat")
+        prayer_titles = [t["title"] for t in tasks]
+        self.assertTrue(any("Bomdod" in t for t in prayer_titles))
+        self.assertTrue(any("Peshin" in t for t in prayer_titles))
+        self.assertTrue(any("Asr" in t for t in prayer_titles))
+        self.assertTrue(any("Shom" in t for t in prayer_titles))
+        self.assertTrue(any("Xufton" in t for t in prayer_titles))
+
+        # Test API endpoint
+        client = TestClient(app)
+        res = client.get("/api/prayer/timings")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["city"], "Samarkand")
+
 
 if __name__ == "__main__":
     unittest.main()
