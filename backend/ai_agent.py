@@ -316,11 +316,12 @@ def generate_weekly_report(end_date: Optional[str] = None) -> Dict[str, Any]:
                 max_done = d_stat["completed"]
                 best_day = d
 
+        tempo = "Yuqori" if rate >= 70 else ("O'rtacha" if rate >= 40 else "Sust")
         ai_text = f"""### 📈 {start_date} — {end_date} Haftalik Tahliliy Hisobot
 
 **1. Hafta Xulosasi:**
 Ushbu haftada jami **{total} ta** vazifa rejalashtirilib, ulardan **{completed} tasi ({rate}%)** to'liq ado etildi.
-Haftalik unumdorlik maromi: **{'Yuqori' if rate >= 70 else 'O\'rtacha' if rate >= 40 else 'Sust'}**.
+Haftalik unumdorlik maromi: **{tempo}**.
 
 **2. Samaradorlik Dinamikasi:**
 - Eng ko'p vazifa bajarilgan kun: **{best_day or 'Aniqlanmadi'}** ({max_done if max_done > 0 else 0} ta vazifa).
@@ -402,11 +403,12 @@ def generate_monthly_report(year: int, month: int) -> Dict[str, Any]:
             pass
 
     if not ai_text:
+        perf_label = "Ajoyib natija" if rate >= 80 else ("Barqaror o'sish" if rate >= 50 else "E'tiborni oshirish kerak")
         ai_text = f"""### 🏆 {year}-yil {month_name} Oyi Strategik Tahliliy Hisoboti
 
 **1. Oylik Umumiy Ko'rsatkichlar:**
 Oy davomida jami **{total} ta** turli xil vazifalar kiritildi. Ulardan **{completed} tasi ({rate}%)** to'liq o'z vaqtida yoki yakuniy holatda bajarildi.
-Oylik samaradorlik indeksi: **{rate}%** ({'Ajoyib natija' if rate >= 80 else 'Barqaror o\'sish' if rate >= 50 else 'E\'tiborni oshirish kerak'}).
+Oylik samaradorlik indeksi: **{rate}%** ({perf_label}).
 
 **2. Sohalar Kesimida Natijadorlik:**
 """
