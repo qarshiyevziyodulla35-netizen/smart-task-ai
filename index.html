@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartTask AI - Vazifalar Boshqaruvi va AI Hisobotlar</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts & Custom CSS -->
+  <link rel="stylesheet" href="/static/styles.css">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Marked.js (Markdown parser for AI outputs) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 antialiased flex flex-col">
+
+  <!-- TOP HEADER -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+          <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent leading-none">
+            SmartTask AI
+          </h1>
+          <p class="text-xs text-slate-500 font-medium mt-0.5">Aqlli Vazifalar & Hisobotlar Tizimi</p>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="flex items-center space-x-3">
+        <!-- Date display -->
+        <div class="hidden sm:flex items-center text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg">
+          <i data-lucide="calendar" class="w-4 h-4 mr-1.5 text-indigo-600"></i>
+          <span id="current-date-display">...</span>
+        </div>
+
+        <!-- Pomodoro Timer Button -->
+        <button onclick="openPomodoroModal()" class="inline-flex items-center px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200 transition" title="25 daqiqalik fokus taymeri">
+          <i data-lucide="timer" class="w-4 h-4 mr-1.5 text-rose-600"></i>
+          <span class="hidden sm:inline">Fokus Taymer</span>
+        </button>
+
+        <!-- Browser Notification Bell -->
+        <button onclick="toggleBrowserNotifications()" id="notification-bell-btn" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition relative" title="Brauzer bildirishnomalari (Vaqti kelgan vazifalar eslatmasi)">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <span id="notif-badge" class="hidden absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full"></span>
+        </button>
+
+        <!-- Calendar Sync Button -->
+        <button onclick="openCalendarModal()" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition" title="Telefon kalendari bilan sinxronlash (.ics & Google Calendar)">
+          <i data-lucide="calendar" class="w-5 h-5"></i>
+        </button>
+
+        <!-- Open Settings -->
+        <button onclick="openSettingsModal()" class="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition" title="Sozlamalar & AI Kaliti">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+        </button>
+
+        <!-- New Task Button -->
+        <button onclick="openTaskModal()" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-sm shadow-indigo-300 transition duration-150">
+          <i data-lucide="plus" class="w-4 h-4 mr-1.5"></i>
+          Yangi Vazifa
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- SUMMARY METRICS CARDS -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Bugungi jami -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+          <i data-lucide="list-todo" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Bugungi Reja</span>
+          <h3 id="metric-today-total" class="text-2xl font-bold text-slate-800">0</h3>
+        </div>
+      </div>
+
+      <!-- Bajarildi -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+          <i data-lucide="check-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Bajarildi</span>
+          <h3 id="metric-today-completed" class="text-2xl font-bold text-emerald-600">0</h3>
+        </div>
+      </div>
+
+      <!-- Kutilmoqda -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+          <i data-lucide="clock" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Jarayonda / Yangi</span>
+          <h3 id="metric-today-pending" class="text-2xl font-bold text-amber-600">0</h3>
+        </div>
+      </div>
+
+      <!-- Unumdorlik % -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+          <i data-lucide="trending-up" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Kunlik Unumdorlik</span>
+          <div class="flex items-baseline space-x-2">
+            <h3 id="metric-today-rate" class="text-2xl font-bold text-purple-700">0%</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI NATURAL LANGUAGE TASK CREATION BAR -->
+    <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 rounded-2xl p-4 sm:p-5 text-white shadow-md relative overflow-hidden">
+      <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <span class="px-2.5 py-1 bg-white/20 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 backdrop-blur-sm">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-yellow-300"></i>
+            <span>AI Agent</span>
+          </span>
+          <span class="text-sm text-indigo-100 font-medium">Tabiiy tilda yozing — AI o'zi vazifa yaratadi:</span>
+        </div>
+        <div class="w-full md:w-auto flex-1 max-w-2xl flex items-center bg-white/10 rounded-xl p-1 border border-white/20 backdrop-blur-md">
+          <input 
+            type="text" 
+            id="nlp-task-input" 
+            placeholder="Masalan: Ertaga soat 15:00 da hisobot topshirishim kerak, juda muhim ish..." 
+            class="w-full bg-transparent px-3 py-2 text-sm text-white placeholder-indigo-200/70 focus:outline-hidden"
+            onkeydown="if(event.key === 'Enter') handleNlpTaskSubmit()"
+          >
+          <!-- Mic button for speech-to-text -->
+          <button 
+            type="button" 
+            onclick="startVoiceRecognition('nlp-task-input', this)" 
+            class="p-2 text-indigo-200 hover:text-white rounded-lg hover:bg-white/10 transition shrink-0" 
+            title="Ovoz bilan kiritish (gapiring)"
+          >
+            <i data-lucide="mic" class="w-4 h-4"></i>
+          </button>
+          <button 
+            onclick="handleNlpTaskSubmit()" 
+            id="nlp-submit-btn"
+            class="px-4 py-2 bg-white text-indigo-900 font-semibold text-xs rounded-lg hover:bg-indigo-50 transition flex items-center shrink-0 space-x-1"
+          >
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            <span>Qo'shish</span>
+          </button>
+        </div>
+      </div>
+      <div id="nlp-feedback" class="hidden text-xs mt-2 text-indigo-200"></div>
+    </div>
+
+    <!-- MAIN TABS NAVIGATION -->
+    <div class="border-b border-slate-200 bg-white rounded-xl px-2 py-1 shadow-xs flex items-center overflow-x-auto space-x-2">
+      <button onclick="switchTab('tasks')" id="tab-btn-tasks" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center space-x-2 bg-indigo-50 text-indigo-700">
+        <i data-lucide="check-square" class="w-4 h-4"></i>
+        <span>Vazifalar Doskasi</span>
+      </button>
+      <button onclick="switchTab('fitness')" id="tab-btn-fitness" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center space-x-2 text-slate-600 hover:bg-slate-50">
+        <i data-lucide="dumbbell" class="w-4 h-4 text-emerald-600"></i>
+        <span>Fitnes & Kaloriya</span>
+      </button>
+      <button onclick="switchTab('daily')" id="tab-btn-daily" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center space-x-2 text-slate-600 hover:bg-slate-50">
+        <i data-lucide="calendar-check" class="w-4 h-4"></i>
+        <span>Kunlik Hisobot</span>
+      </button>
+      <button onclick="switchTab('weekly')" id="tab-btn-weekly" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center space-x-2 text-slate-600 hover:bg-slate-50">
+        <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+        <span>Haftalik Hisobot</span>
+      </button>
+      <button onclick="switchTab('monthly')" id="tab-btn-monthly" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center space-x-2 text-slate-600 hover:bg-slate-50">
+        <i data-lucide="trophy" class="w-4 h-4"></i>
+        <span>Oylik Hisobot</span>
+      </button>
+      <button onclick="switchTab('coach')" id="tab-btn-coach" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center space-x-2 text-slate-600 hover:bg-slate-50">
+        <i data-lucide="bot" class="w-4 h-4 text-purple-600"></i>
+        <span>AI Murabbiy</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: VAZIFALAR DOSKASI (TASKS) -->
+    <div id="tab-content-tasks" class="space-y-4">
+      
+      <!-- Filters and Search Bar -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+        
+        <!-- Status Filter Buttons -->
+        <div class="flex items-center space-x-1.5 overflow-x-auto w-full md:w-auto">
+          <button onclick="setFilter('status', '')" class="filter-status-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-status="">Barchasi</button>
+          <button onclick="setFilter('status', 'today')" class="filter-status-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200" data-status="today">Bugun</button>
+          <button onclick="setFilter('status', 'Ochiq')" class="filter-status-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200" data-status="Ochiq">Bajarilmagan</button>
+          <button onclick="setFilter('status', 'Bajarildi')" class="filter-status-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200" data-status="Bajarildi">Bajarilgan</button>
+        </div>
+
+        <!-- Category & Priority Filters & Search -->
+        <div class="flex items-center space-x-2 w-full md:w-auto justify-end">
+          <div class="flex items-center space-x-1">
+            <select id="filter-category" onchange="applyFilters()" class="text-xs font-medium bg-slate-100 border-none rounded-lg px-2.5 py-2 text-slate-700 focus:ring-2 focus:ring-indigo-500">
+              <option value="">Barcha Kategoriyalar</option>
+            </select>
+            <button onclick="openCategoriesModal()" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-semibold flex items-center transition" title="Kategoriyalarni boshqarish / yangi qo'shish">
+              <i data-lucide="tags" class="w-3.5 h-3.5 text-indigo-600"></i>
+            </button>
+          </div>
+
+          <select id="filter-priority" onchange="applyFilters()" class="text-xs font-medium bg-slate-100 border-none rounded-lg px-2.5 py-2 text-slate-700 focus:ring-2 focus:ring-indigo-500">
+            <option value="">Barcha Ustuvorlik</option>
+            <option value="Yuqori">🔴 Yuqori</option>
+            <option value="O'rta">🟡 O'rta</option>
+            <option value="Past">🟢 Past</option>
+          </select>
+
+          <div class="relative flex-1 md:w-48">
+            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400"></i>
+            <input 
+              type="text" 
+              id="search-input" 
+              oninput="debounceSearch()" 
+              placeholder="Qidirish..." 
+              class="w-full text-xs bg-slate-100 pl-8 pr-3 py-2 rounded-lg border-none focus:ring-2 focus:ring-indigo-500 text-slate-700"
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Task List Items Container -->
+      <div id="task-list-container" class="space-y-2.5">
+        <div class="text-center py-12 text-slate-400">
+          <i data-lucide="loader" class="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-500"></i>
+          <p class="text-sm">Vazifalar yuklanmoqda...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: FITNES & KALORIYA (FITNESS & CALORIE TRACKER) -->
+    <div id="tab-content-fitness" class="hidden space-y-6">
+      
+      <!-- Top Date & Goal Controls Bar -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Fitnes sanasi:</label>
+          <input type="date" id="fitness-date-picker" onchange="loadFitnessData()" class="text-xs bg-slate-100 px-3 py-2 rounded-lg border-none font-semibold text-slate-700 focus:ring-2 focus:ring-emerald-500">
+          <button onclick="loadFitnessData()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition flex items-center space-x-1.5">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Yangilash</span>
+          </button>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="openFitnessProfileModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center space-x-1.5">
+            <i data-lucide="target" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span>Maqsadlarni Sozlash</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Fitness KPI Overview Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Qabul qilingan kaloriya -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <i data-lucide="utensils" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Iste'mol Qilindi</span>
+            <h3 id="fit-consumed-cal" class="text-2xl font-bold text-emerald-600">0 kcal</h3>
+          </div>
+        </div>
+
+        <!-- Mashg'ulotda yoqilgan -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
+            <i data-lucide="flame" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Sportda Yoqildi</span>
+            <h3 id="fit-burned-cal" class="text-2xl font-bold text-orange-600">0 kcal</h3>
+          </div>
+        </div>
+
+        <!-- Sof Balans (Net) -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+            <i data-lucide="scale" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Sof Kaloriya (Net)</span>
+            <div class="flex items-baseline space-x-1.5">
+              <h3 id="fit-net-cal" class="text-2xl font-bold text-indigo-700">0 kcal</h3>
+              <span id="fit-target-cal" class="text-xs text-slate-400 font-medium">/ 2200</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Suv Tracker -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
+              <i data-lucide="droplet" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Ichilgan Suv</span>
+              <div class="flex items-baseline space-x-1">
+                <h3 id="fit-water-ml" class="text-2xl font-bold text-sky-600">0</h3>
+                <span id="fit-water-target" class="text-xs text-slate-400">/ 2500 ml</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-col space-y-1">
+            <button onclick="handleAddWater(250)" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg text-[11px] font-bold transition">+250ml</button>
+            <button onclick="handleAddWater(500)" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg text-[11px] font-bold transition">+500ml</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Makronutrientlar (KBJU: Oqsil, Uglevod, Yog') Progress Paneli -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center justify-between">
+          <span>Makronutrientlar Balansi (KBJU)</span>
+          <span id="fit-goal-badge" class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700">Mushak yig'ish</span>
+        </h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Oqsil (Protein) -->
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            <div class="flex justify-between text-xs font-bold mb-1">
+              <span class="text-blue-700">🥩 Oqsil (Protein)</span>
+              <span id="fit-protein-text" class="text-slate-700">0g / 130g</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div id="fit-protein-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Uglevod (Carbs) -->
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            <div class="flex justify-between text-xs font-bold mb-1">
+              <span class="text-amber-700">🍚 Uglevodlar</span>
+              <span id="fit-carbs-text" class="text-slate-700">0g</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div id="fit-carbs-bar" class="bg-amber-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Yog' (Fat) -->
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            <div class="flex justify-between text-xs font-bold mb-1">
+              <span class="text-rose-700">🥑 Yog'lar</span>
+              <span id="fit-fat-text" class="text-slate-700">0g</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div id="fit-fat-bar" class="bg-rose-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Food / Workout Natural Language Input -->
+      <div class="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-md relative overflow-hidden">
+        <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="flex items-center space-x-3">
+            <span class="px-2.5 py-1 bg-white/20 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 backdrop-blur-sm">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-yellow-300"></i>
+              <span>AI Fitnes Agent</span>
+            </span>
+            <span class="text-sm text-emerald-100 font-medium">Taom yoki mashqni oddiy tilda yozing yoki mikrofonda ayting:</span>
+          </div>
+          <div class="w-full md:w-auto flex-1 max-w-2xl flex items-center bg-white/10 rounded-xl p-1 border border-white/20 backdrop-blur-md">
+            <select id="fit-nlp-type" class="bg-transparent text-xs font-bold text-white border-r border-white/20 px-2.5 py-2 focus:outline-hidden">
+              <option value="food" class="text-slate-800">🍲 Taomnoma</option>
+              <option value="workout" class="text-slate-800">🏋️ Mashg'ulot</option>
+            </select>
+            <input 
+              type="text" 
+              id="fit-nlp-input" 
+              placeholder="Masalan: Tushlikda 200g tovuq va 150g grechka yedim..." 
+              class="w-full bg-transparent px-3 py-2 text-sm text-white placeholder-emerald-200/70 focus:outline-hidden"
+              onkeydown="if(event.key === 'Enter') handleFitNlpSubmit()"
+            >
+            <!-- Mic button for speech-to-text -->
+            <button 
+              type="button" 
+              onclick="startVoiceRecognition('fit-nlp-input', this)" 
+              class="p-2 text-emerald-200 hover:text-white rounded-lg hover:bg-white/10 transition shrink-0" 
+              title="Ovoz bilan kiritish (gapiring)"
+            >
+              <i data-lucide="mic" class="w-4 h-4"></i>
+            </button>
+            <button 
+              onclick="handleFitNlpSubmit()" 
+              id="fit-nlp-submit-btn"
+              class="px-4 py-2 bg-white text-emerald-950 font-semibold text-xs rounded-lg hover:bg-emerald-50 transition flex items-center shrink-0 space-x-1"
+            >
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Qo'shish</span>
+            </button>
+          </div>
+        </div>
+        <div id="fit-nlp-feedback" class="hidden text-xs mt-2 text-emerald-200"></div>
+      </div>
+
+      <!-- Meals & Workouts Section Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Taomlar Ro'yxati (Meals - 2 columns) -->
+        <div class="lg:col-span-2 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center space-x-2">
+              <i data-lucide="utensils" class="w-4 h-4 text-emerald-600"></i>
+              <span>Kunlik Taomnomalar</span>
+            </h3>
+            <button onclick="openAddFoodModal()" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center space-x-1 bg-emerald-50 px-3 py-1.5 rounded-lg transition">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Qo'lda qo'shish</span>
+            </button>
+          </div>
+
+          <!-- 4 Meal Blocks: Nonushta, Tushlik, Kechki ovqat, Gazak -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="meals-blocks-container">
+            <!-- Rendered dynamically in app.js -->
+          </div>
+        </div>
+
+        <!-- Sport Mashg'ulotlari Kundaligi (1 column) -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center space-x-2">
+              <i data-lucide="dumbbell" class="w-4 h-4 text-orange-600"></i>
+              <span>Mashg'ulotlar Kundaligi</span>
+            </h3>
+            <button onclick="openAddWorkoutModal()" class="text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center space-x-1 bg-orange-50 px-3 py-1.5 rounded-lg transition">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Qo'shish</span>
+            </button>
+          </div>
+
+          <!-- Workout items container -->
+          <div id="workouts-list-container" class="space-y-3">
+            <!-- Rendered dynamically in app.js -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- AI Fitnes Murabbiyining Tahlili & Xulosasi -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 relative overflow-hidden">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">AI Fitnes & Tiklanish Tahlili</h3>
+              <p class="text-xs text-slate-500">Sport mashg'ulotlari va oziqlanish balansingiz bo'yicha amaliy maslahatlar</p>
+            </div>
+          </div>
+          <button onclick="loadFitnessAiReport()" class="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg transition flex items-center space-x-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Qayta tahlil</span>
+          </button>
+        </div>
+        <div id="fitness-ai-report-box" class="ai-markdown-content text-sm text-slate-700">
+          <!-- Rendered dynamically in app.js -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: KUNLIK HISOBOT (DAILY REPORT) -->
+    <div id="tab-content-daily" class="hidden space-y-6">
+      <!-- Controls -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Hisobot sanasi:</label>
+          <input type="date" id="daily-report-date" class="text-xs bg-slate-100 px-3 py-2 rounded-lg border-none font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500">
+          <button onclick="loadDailyReport()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition flex items-center space-x-1.5">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Hisobotni Yangilash</span>
+          </button>
+        </div>
+        <div>
+          <button onclick="window.print()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center space-x-1.5">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+            <span>Chop etish / PDF</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Report Card Details (Printable Area) -->
+      <div id="daily-report-content" class="print-area space-y-6">
+        <!-- Rendered dynamically in app.js -->
+      </div>
+    </div>
+
+    <!-- TAB 3: HAFTALIK HISOBOT (WEEKLY REPORT) -->
+    <div id="tab-content-weekly" class="hidden space-y-6">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Haftaning yakuniy sanasi:</label>
+          <input type="date" id="weekly-report-date" class="text-xs bg-slate-100 px-3 py-2 rounded-lg border-none font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500">
+          <button onclick="loadWeeklyReport()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition flex items-center space-x-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+            <span>Haftalik Tahlilni Yaratish</span>
+          </button>
+        </div>
+        <div>
+          <button onclick="window.print()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center space-x-1.5">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+            <span>Chop etish / PDF</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="weekly-report-content" class="print-area space-y-6">
+        <!-- Rendered dynamically in app.js -->
+      </div>
+    </div>
+
+    <!-- TAB 4: OYLIK HISOBOT (MONTHLY REPORT) -->
+    <div id="tab-content-monthly" class="hidden space-y-6">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Oy va Yil:</label>
+          <select id="monthly-report-year" class="text-xs bg-slate-100 px-3 py-2 rounded-lg border-none font-semibold text-slate-700">
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+          </select>
+          <select id="monthly-report-month" class="text-xs bg-slate-100 px-3 py-2 rounded-lg border-none font-semibold text-slate-700">
+            <option value="1">Yanvar</option>
+            <option value="2">Fevral</option>
+            <option value="3">Mart</option>
+            <option value="4">Aprel</option>
+            <option value="5">May</option>
+            <option value="6">Iyun</option>
+            <option value="7">Iyul</option>
+            <option value="8">Avgust</option>
+            <option value="9" selected>Sentyabr</option>
+            <option value="10">Oktyabr</option>
+            <option value="11">Noyabr</option>
+            <option value="12">Dekabr</option>
+          </select>
+          <button onclick="loadMonthlyReport()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition flex items-center space-x-1.5">
+            <i data-lucide="award" class="w-3.5 h-3.5"></i>
+            <span>Oylik Tahlilni Yaratish</span>
+          </button>
+        </div>
+        <div>
+          <button onclick="window.print()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center space-x-1.5">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+            <span>Chop etish / PDF</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="monthly-report-content" class="print-area space-y-6">
+        <!-- Rendered dynamically in app.js -->
+      </div>
+    </div>
+
+    <!-- TAB 5: AI MURABBIY (AI COACH CHAT) -->
+    <div id="tab-content-coach" class="hidden">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[650px] overflow-hidden">
+        <!-- Coach Header -->
+        <div class="p-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold shadow-xs">
+            <i data-lucide="bot" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Smart Productivity Coach</h3>
+            <p class="text-xs text-slate-500">Unumdorlik, vaqt boshqaruvi va ruhiy quvvat bo'yicha shaxsiy AI maslahatchingiz</p>
+          </div>
+        </div>
+
+        <!-- Chat History -->
+        <div id="coach-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+          <!-- Initial greeting -->
+          <div class="flex items-start space-x-3 max-w-xl">
+            <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+            </div>
+            <div class="bg-slate-100 text-slate-800 rounded-2xl rounded-tl-none p-3.5 text-xs leading-relaxed">
+              Assalomu alaykum! Men sizning shaxsiy unumdorlik murabbiysingizman. 
+              Kunlik vazifalaringizni samarali bajarish, chalg'imaslik, to'g'ri rejalashtirish yoki kunlik maromni tiklash bo'yicha har qanday savolingiz bo'lsa, bemalol so'rashingiz mumkin!
+            </div>
+          </div>
+        </div>
+
+        <!-- Preset prompts -->
+        <div class="px-4 py-2 border-t border-slate-100 flex items-center space-x-2 overflow-x-auto text-xs">
+          <button onclick="askPreset('Bugun vaqtimni qanday to\'g\'ri taqsimlay?')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 shrink-0">⏱️ Vaqtni taqsimlash</button>
+          <button onclick="askPreset('Qaysi vazifamdan boshlashim kerak?')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 shrink-0">🎯 Qaysi vazifadan boshlay?</button>
+          <button onclick="askPreset('Biroz charchadim va motivatsiya pasaydi, nima qilsam bo\'ladi?')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 shrink-0">⚡ Motivatsiya tiklash</button>
+        </div>
+
+        <!-- Chat input -->
+        <div class="p-3 border-t border-slate-200 bg-white flex items-center space-x-2">
+          <input 
+            type="text" 
+            id="coach-input" 
+            placeholder="Murabbiyga savolingizni yozing..." 
+            class="flex-1 bg-slate-100 px-4 py-2.5 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            onkeydown="if(event.key === 'Enter') handleCoachSend()"
+          >
+          <button 
+            onclick="handleCoachSend()" 
+            id="coach-send-btn"
+            class="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs transition"
+          >
+            <i data-lucide="send" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL: ADD / EDIT TASK -->
+  <div id="task-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-xl border border-slate-100 overflow-hidden transform transition-all">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 id="modal-task-title" class="text-base font-bold text-slate-800">Yangi Vazifa Qo'shish</h3>
+        <button onclick="closeTaskModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="task-form" onsubmit="handleTaskFormSubmit(event)" class="p-6 space-y-4">
+        <input type="hidden" id="form-task-id">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Vazifa nomi *</label>
+          <input 
+            type="text" 
+            id="form-title" 
+            required 
+            placeholder="Masalan: Dasturlash hisobotini tayyorlash" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:outline-hidden"
+          >
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Batafsil tavsif (ixtiyoriy)</label>
+          <textarea 
+            id="form-desc" 
+            rows="2" 
+            placeholder="Qo'shimcha eslatma yoki havola..." 
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:outline-hidden"
+          ></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Kategoriya</label>
+            <div class="flex items-center space-x-1.5">
+              <select id="form-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500">
+                <option value="Ish">💼 Ish</option>
+              </select>
+              <button type="button" onclick="openCategoriesModal()" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs transition shrink-0" title="Yangi kategoriya qo'shish">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Ustuvorlik</label>
+            <select id="form-priority" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500">
+              <option value="Yuqori">🔴 Yuqori</option>
+              <option value="O'rta" selected>🟡 O'rta</option>
+              <option value="Past">🟢 Past</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Bajarish sanasi *</label>
+            <input 
+              type="date" 
+              id="form-due-date" 
+              required 
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500"
+            >
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Bajarish vaqti</label>
+            <input 
+              type="time" 
+              id="form-due-time" 
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500"
+            >
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+          <button type="button" onclick="closeTaskModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl transition">
+            Bekor qilish
+          </button>
+          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition">
+            Saqlash
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: SETTINGS -->
+  <div id="settings-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-xl border border-slate-100 p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+          <i data-lucide="settings" class="w-5 h-5 text-indigo-600"></i>
+          <span>Tizim Sozlamalari</span>
+        </h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Google Gemini API Kaliti</label>
+          <p class="text-xs text-slate-500 mb-2">
+            API kalit kiritilsa, vazifalarni tabiiy tilda tahlil qilish va chuqur AI hisobotlar Google Gemini modeli orqali yanada mukammal ishlaydi. (Kalitsiz ham dastur o'rnatilgan aqlli algoritmlar orqali to'liq ishlaydi).
+          </p>
+          <input 
+            type="password" 
+            id="setting-api-key" 
+            placeholder="AIzaSy..." 
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+          >
+          <p id="api-key-status" class="text-xs text-slate-400 mt-1"></p>
+        </div>
+
+        <!-- Telegram Bot Token Input -->
+        <div class="pt-3 border-t border-slate-100">
+          <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+            <i data-lucide="send" class="w-3.5 h-3.5 text-sky-500"></i>
+            <span>Telegram Bot Tokeni</span>
+          </label>
+          <p class="text-xs text-slate-500 mb-2">
+            Telegramda <strong>@BotFather</strong> orqali olingan HTTP API tokenni kiriting. Keyin <code>run_bot.bat</code> orqali botingizni ishga tushirishingiz mumkin.
+          </p>
+          <input 
+            type="password" 
+            id="setting-telegram-token" 
+            placeholder="123456789:ABCdef..." 
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+          >
+          <p id="telegram-token-status" class="text-xs text-slate-400 mt-1"></p>
+        </div>
+
+        <!-- Telegram WebApp URL -->
+        <div class="pt-3 border-t border-slate-100">
+          <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center space-x-1.5">
+            <i data-lucide="globe" class="w-3.5 h-3.5 text-indigo-500"></i>
+            <span>Telegram Web App URL (HTTPS)</span>
+          </label>
+          <p class="text-xs text-slate-500 mb-2">
+            Telegram xavfsizlik qoidasiga ko'ra, Mini App faqat <strong>https://</strong> havolalarni qabul qiladi (masalan: <code>ngrok</code> yoki serveringizning https manzili). Agar kiritilmasa ham, bot to'liq matnli rejimda ishlayveradi.
+          </p>
+          <input 
+            type="text" 
+            id="setting-webapp-url" 
+            placeholder="https://sizning-saytingiz.ngrok-free.app (ixtiyoriy)" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+          >
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+        <button onclick="closeSettingsModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl">
+          Yopish
+        </button>
+        <button onclick="saveApiKeySetting()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs">
+          Saqlash
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: POMODORO FOKUS TAYMERI -->
+  <div id="pomodoro-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl border border-slate-100 p-6 text-center space-y-5">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full flex items-center space-x-1">
+          <i data-lucide="timer" class="w-3.5 h-3.5"></i>
+          <span>Fokus Rejimi</span>
+        </span>
+        <button onclick="closePomodoroModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Mode buttons -->
+      <div class="flex items-center justify-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+        <button onclick="setPomodoroMode('work')" id="pomo-mode-work" class="px-3 py-1.5 rounded-lg bg-white shadow-xs text-rose-600">25 min (Fokus)</button>
+        <button onclick="setPomodoroMode('short')" id="pomo-mode-short" class="px-3 py-1.5 rounded-lg text-slate-600">5 min (Dam)</button>
+        <button onclick="setPomodoroMode('long')" id="pomo-mode-long" class="px-3 py-1.5 rounded-lg text-slate-600">15 min (Katta dam)</button>
+      </div>
+
+      <!-- Giant Clock Face -->
+      <div class="py-4">
+        <div id="pomodoro-timer-display" class="text-5xl font-black text-slate-900 tracking-tight font-mono">25:00</div>
+        <p id="pomodoro-status-text" class="text-xs text-slate-400 mt-2">Diqqatni bir maqsadga qarating</p>
+      </div>
+
+      <!-- Task selector for focus -->
+      <div class="text-left">
+        <label class="block text-[11px] font-bold text-slate-500 mb-1">Qaysi vazifa ustida ishlayapsiz?</label>
+        <select id="pomodoro-task-select" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700">
+          <option value="">Umumiy chuqur diqqat (Deep Work)</option>
+        </select>
+      </div>
+
+      <!-- Timer Control Buttons -->
+      <div class="flex items-center justify-center space-x-3 pt-2">
+        <button onclick="resetPomodoro()" class="p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl transition" title="Qayta boshlash">
+          <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+        </button>
+        <button onclick="togglePomodoro()" id="pomodoro-toggle-btn" class="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-bold shadow-lg shadow-rose-200 transition flex items-center space-x-2">
+          <i data-lucide="play" id="pomodoro-play-icon" class="w-5 h-5 fill-current"></i>
+          <span id="pomodoro-btn-label">Boshlash</span>
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-400 border-t border-slate-100 pt-3">
+        Bugun yakunlangan seanslar: <strong id="pomodoro-session-count" class="text-rose-600">0</strong> 🍅
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD FOOD (MANUAL) -->
+  <div id="add-food-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-xl border border-slate-100 p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+          <i data-lucide="utensils" class="w-5 h-5 text-emerald-600"></i>
+          <span>Taomnoma Qo'shish</span>
+        </h3>
+        <button onclick="closeAddFoodModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="food-form" onsubmit="handleAddFoodSubmit(event)" class="space-y-3.5">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Taom vaqti</label>
+            <select id="food-meal-type" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+              <option value="Nonushta">🍳 Nonushta</option>
+              <option value="Tushlik" selected>🍲 Tushlik</option>
+              <option value="Kechki ovqat">🥗 Kechki ovqat</option>
+              <option value="Gazak">🍎 Gazak</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Vazni (gramm)</label>
+            <input type="number" id="food-weight" value="150" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Taom nomi *</label>
+          <input type="text" id="food-name" required placeholder="Masalan: Qaynatilgan tovuq filesi" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+        </div>
+
+        <div class="grid grid-cols-4 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 mb-1">Kaloriya</label>
+            <input type="number" step="0.1" id="food-calories" required placeholder="kcal" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-emerald-600">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 mb-1">Oqsil (g)</label>
+            <input type="number" step="0.1" id="food-protein" value="0" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-blue-600">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 mb-1">Uglevod (g)</label>
+            <input type="number" step="0.1" id="food-carbs" value="0" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-amber-600">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 mb-1">Yog' (g)</label>
+            <input type="number" step="0.1" id="food-fat" value="0" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-rose-600">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeAddFoodModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl">Bekor qilish</button>
+          <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs">Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD WORKOUT -->
+  <div id="add-workout-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-xl border border-slate-100 p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+          <i data-lucide="flame" class="w-5 h-5 text-orange-600"></i>
+          <span>Sport Mashg'ulotini Kiritish</span>
+        </h3>
+        <button onclick="closeAddWorkoutModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="workout-form" onsubmit="handleAddWorkoutSubmit(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Mashg'ulot turi</label>
+          <select id="workout-type" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+            <option value="Zal / Kuch mashqlari">🏋️ Trenajor zali / Kuch mashqlari</option>
+            <option value="Yugurish / Kardio">🏃 Yugurish / Kardio</option>
+            <option value="Turnik / Brus">🤸 Turnik / Brus mashqlari</option>
+            <option value="Suzish">🏊 Suzish</option>
+            <option value="Futbol / Basketbol">⚽ Futbol / Sport o'yinlari</option>
+            <option value="Yurish / Yengil">🚶 Yurish / Yengil kardio</option>
+            <option value="Boshqa">📌 Boshqa mashg'ulot</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Davomiyligi (daqiqa) *</label>
+            <input type="number" id="workout-duration" value="45" required min="1" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Yoqilgan kaloriya (ixtiyoriy)</label>
+            <input type="number" step="0.1" id="workout-calories" placeholder="Avto-hisob" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Qo'shimcha eslatma</label>
+          <input type="text" id="workout-notes" placeholder="Masalan: Ko'krak va triceps kuni, 4 ta mashq" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+        </div>
+
+        <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeAddWorkoutModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl">Bekor qilish</button>
+          <button type="submit" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-xl shadow-xs">Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: FITNESS PROFILE & GOALS -->
+  <div id="fitness-profile-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-xl border border-slate-100 p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+          <i data-lucide="target" class="w-5 h-5 text-emerald-600"></i>
+          <span>Fitnes Maqsadlarini Sozlash</span>
+        </h3>
+        <button onclick="closeFitnessProfileModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="profile-form" onsubmit="handleFitnessProfileSubmit(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Asosiy maqsad</label>
+          <select id="prof-goal-type" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+            <option value="Mushak massasi yig'ish">💪 Mushak massasi yig'ish (Gipertrofiya)</option>
+            <option value="Vazn tashlash (defitsit)">🔥 Vazn tashlash (Yog' eritish)</option>
+            <option value="Formani saqlash va sog'lomlik">⚖️ Formani saqlash va faollik</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Kunlik Kaloriya (kcal)</label>
+            <input type="number" id="prof-target-cal" value="2200" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-indigo-700">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Oqsil normasi (g)</label>
+            <input type="number" id="prof-target-protein" value="130" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-blue-700">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Kunlik Suv (ml)</label>
+            <input type="number" id="prof-target-water" value="2500" required step="50" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-sky-700">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Hozirgi vazningiz (kg)</label>
+            <input type="number" step="0.5" id="prof-weight" value="75" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeFitnessProfileModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl">Yopish</button>
+          <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs">Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: MANAGE CATEGORIES -->
+  <div id="categories-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-xl border border-slate-100 p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+          <i data-lucide="tags" class="w-5 h-5 text-indigo-600"></i>
+          <span>Kategoriyalarni Boshqarish</span>
+        </h3>
+        <button onclick="closeCategoriesModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Add Category Form -->
+      <form id="add-category-form" onsubmit="handleAddCategorySubmit(event)" class="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+        <div class="text-xs font-bold text-slate-700">Yangi kategoriya qo'shish:</div>
+        <div class="flex items-center space-x-2">
+          <input 
+            type="text" 
+            id="new-category-name" 
+            required 
+            placeholder="Masalan: Dizayn, Oila..." 
+            class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+          >
+          <select id="new-category-icon" class="bg-white border border-slate-200 rounded-xl px-2 py-2 text-xs">
+            <option value="tag">🏷️ Belgisi</option>
+            <option value="briefcase">💼 Ish</option>
+            <option value="book-open">📚 O'qish</option>
+            <option value="activity">🏃 Salomatlik</option>
+            <option value="user">🏠 Shaxsiy</option>
+            <option value="dumbbell">💪 Sport</option>
+            <option value="wallet">💰 Moliya</option>
+            <option value="rocket">🚀 Loyiha</option>
+            <option value="target">🎯 Maqsad</option>
+            <option value="shopping-cart">🛒 Xarid</option>
+            <option value="code">💻 Kod</option>
+            <option value="music">🎵 Musiqa</option>
+            <option value="heart">❤️ Oila</option>
+          </select>
+          <button type="submit" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shrink-0 transition">
+            Qo'shish
+          </button>
+        </div>
+      </form>
+
+      <!-- Existing Categories List -->
+      <div class="space-y-2">
+        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Mavjud kategoriyalar:</label>
+        <div id="categories-list-box" class="max-h-56 overflow-y-auto space-y-1 divide-y divide-slate-100">
+          <!-- Dynamically populated in app.js -->
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end pt-3 border-t border-slate-100">
+        <button onclick="closeCategoriesModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl">
+          Yopish
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CALENDAR INTEGRATION & PHONE NOTIFICATIONS -->
+  <div id="calendar-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-xl border border-slate-100 p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+          <i data-lucide="calendar" class="w-5 h-5 text-indigo-600"></i>
+          <span>Kalendar va Telefon Eslatmalari Integratsiyasi</span>
+        </h3>
+        <button onclick="closeCalendarModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs text-slate-600 leading-relaxed">
+        <div class="p-3.5 bg-indigo-50/70 rounded-xl border border-indigo-100 flex items-start space-x-3">
+          <i data-lucide="bell-ring" class="w-5 h-5 text-indigo-600 shrink-0 mt-0.5"></i>
+          <div>
+            <div class="font-bold text-indigo-900 mb-0.5">Telefoningiz qulf ekranida eslatmalar!</div>
+            <p class="text-indigo-800">Kalendarni ulab qo'ysangiz, har bir vazifa muddati yetishidan <b>15 daqiqa oldin</b> iPhone, Android yoki kompyuteringizda avtomatik ovozli signal va bildirishnoma chiqadi.</p>
+          </div>
+        </div>
+
+        <!-- Variant 1: Download .ics -->
+        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="font-bold text-slate-800 flex items-center space-x-2">
+              <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">1</span>
+              <span>Kalendarni yuklab olish (.ics fayl)</span>
+            </div>
+            <a href="/api/calendar/tasks.ics" download="smarttask_tasks.ics" class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-xs transition">
+              <i data-lucide="download" class="w-3.5 h-3.5 mr-1.5"></i>
+              Yuklab olish
+            </a>
+          </div>
+          <p class="text-slate-500 text-[11px]">
+            Yuklab olingan faylni telefon yoki kompyuteringizda ochsangiz, barcha vazifalar kalendaringizga avtomatik qo'shiladi.
+          </p>
+        </div>
+
+        <!-- Variant 2: Subscribe URL (Live Sync) -->
+        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <div class="font-bold text-slate-800 flex items-center space-x-2">
+            <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">2</span>
+            <span>Doimiy jonli obuna havolasi (Avtomatik yangilanish)</span>
+          </div>
+          <p class="text-slate-500 text-[11px]">
+            Ushbu havolani Google Calendar yoki Apple Calendar-ga obuna qilib kiriting. Saytda yangi vazifa qo'shsangiz ham kalendaringizda o'zi yangilanib turadi:
+          </p>
+          <div class="flex items-center space-x-2">
+            <input type="text" id="calendar-subscribe-url" readonly class="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 font-mono select-all">
+            <button onclick="copyCalendarSubscribeUrl()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg transition shrink-0 flex items-center space-x-1">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span>Nusxa olish</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Telegram Bot Reminder Info -->
+        <div class="p-3.5 bg-sky-50/70 rounded-xl border border-sky-100 flex items-start space-x-3">
+          <i data-lucide="send" class="w-5 h-5 text-sky-600 shrink-0 mt-0.5"></i>
+          <div>
+            <div class="font-bold text-sky-900 mb-0.5">Telegram orqali to'g'ridan-to'g'ri olish</div>
+            <p class="text-sky-800">Telegram botingizga <code class="bg-sky-100 px-1 py-0.5 rounded font-mono font-bold">/kalendar</code> deb yozsangiz, bot tayyor .ics faylni va obuna havolasini chatga yuboradi.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end pt-3 border-t border-slate-100">
+        <button onclick="closeCalendarModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl">
+          Yopish
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Local databases & logs (Render persistent diskda saqlanadi)
+data/*.db
+data/*.sqlite3
+data/*.log
+*.log
+
+# Environment variables (xavfsizlik uchun)
+.env
+.env.local
+
+# Operating System
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+scratch/test_calories.py

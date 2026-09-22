@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  smarttask:
+    build: .
+    container_name: smarttask_ai
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - WEB_APP_URL=${WEB_APP_URL:-}
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/tasks"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

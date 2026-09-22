@@ -1,0 +1,15 @@
+[Unit]
+Description=SmartTask AI Telegram Bot Service
+After=network.target smarttask-web.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/smarttask_ai
+ExecStart=/opt/smarttask_ai/venv/bin/python telegram_bot.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
