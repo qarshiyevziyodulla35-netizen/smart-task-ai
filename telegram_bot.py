@@ -117,10 +117,10 @@ Siz menga to'g'ridan-to'g'ri yozishingiz mumkin:
 
 📊 **Hisobotlar, Namoz va Kalendar:**
 - `/bugun` — Bugungi vazifalar va kaloriya balansi
-- `/namoz` — Samarqand namoz vaqtlari (5 vaqt)
+- `/namoz` — Namoz vaqtlari (Samarqand va boshqa shaharlar, yoki GPS lokatsiya)
 - `/kalendar` — Vazifalarni telefon kalendariga ulash (.ics)
 - `/eslatma` — Bildirishnomalar holati
-- `/ilova` — Mini App veb-ilovasini ochish
+- `/ilova` — Mini App ilovasini ochish
 - `/haftalik` — Haftalik unumdorlik tahlili
 - `/yordam` — Barcha buyruqlar ro'yxati
 """
@@ -129,12 +129,19 @@ Siz menga to'g'ridan-to'g'ri yozishingiz mumkin:
     if web_app_url:
         try:
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📱 SmartTask Ilovasini Ochish", web_app=WebAppInfo(url=web_app_url))]
+                [InlineKeyboardButton("📱 SmartTask Mini App (Ilova)", web_app=WebAppInfo(url=web_app_url))],
+                [
+                    InlineKeyboardButton("🌐 Brauzerda Ochish", url=web_app_url),
+                    InlineKeyboardButton("🕌 Namoz Vaqtlari", callback_data="prayer_city_Samarqand")
+                ]
             ])
         except Exception as e:
             logger.warning(f"Keyboard yaratishda xatolik: {e}")
     else:
-        welcome_text += "\n💡 *Telegram ichida saytni ochish uchun: saytingiz havolasini `/set_url https://...` orqali botga yuboring!*"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🕌 Namoz Vaqtlari", callback_data="prayer_city_Samarqand")]
+        ])
+        welcome_text += "\n💡 *Telegram ichida ilovani ochish uchun: saytingiz havolasini `/set_url https://...` orqali sozlang!*"
 
     await safe_reply(update, welcome_text, reply_markup=keyboard)
 
@@ -318,10 +325,37 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     await safe_reply(update, msg)
 
 
+def get_prayer_keyboard(current_city="Samarqand") -> InlineKeyboardMarkup:
+    cities = [
+        [("🕌 Samarqand", "prayer_city_Samarqand"), ("🕌 Toshkent", "prayer_city_Toshkent"), ("🕌 Buxoro", "prayer_city_Buxoro")],
+        [("🕌 Qarshi", "prayer_city_Qarshi"), ("🕌 Farg'ona", "prayer_city_Farg'ona"), ("🕌 Andijon", "prayer_city_Andijon")],
+        [("🕌 Namangan", "prayer_city_Namangan"), ("🕌 Termiz", "prayer_city_Termiz"), ("🕌 Urganch", "prayer_city_Urganch")],
+    ]
+    buttons = []
+    for row in cities:
+        btn_row = []
+        for name, cb in row:
+            clean_city = cb.replace("prayer_city_", "")
+            label = f"📍 {name}" if clean_city == current_city else name
+            btn_row.append(InlineKeyboardButton(label, callback_data=cb))
+        buttons.append(btn_row)
+
+    web_url = get_web_app_url()
+    action_row = []
+    if web_url:
+        action_row.append(InlineKeyboardButton("📱 Mini App", web_app=WebAppInfo(url=web_url)))
+        action_row.append(InlineKeyboardButton("🌐 Saytda Ochish", url=web_url))
+    if action_row:
+        buttons.append(action_row)
+
+    return InlineKeyboardMarkup(buttons)
+
+
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data or ""
+
     if data.startswith("done_"):
         try:
             task_id = int(data.split("_")[1])
@@ -334,6 +368,35 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 )
         except Exception as e:
             logger.error(f"Callback error: {e}")
+
+    elif data.startswith("prayer_city_"):
+        city_name = data.replace("prayer_city_", "").strip()
+        today_str = date.today().strftime("%Y-%m-%d")
+        res = prayer_service.fetch_prayer_times_by_location(city=city_name, target_date=today_str)
+        prayer_service.auto_schedule_samarkand_prayers(today_str, city=city_name)
+        timings = res["timings"]
+
+        text = f"""🕌 **{res['city']} Namoz Vaqtlari ({today_str})**
+⏳ **Keyingi namoz:** {res['next_prayer']} — *{res['remaining_text']} qoldi*
+
+🌅 **Bomdod:** `{timings.get('Bomdod')}`
+☀️ **Quyosh:** `{timings.get('Quyosh')}`
+🟡 **Peshin:** `{timings.get('Peshin')}`
+⛅ **Asr:** `{timings.get('Asr')}`
+🌇 **Shom:** `{timings.get('Shom')}`
+🌙 **Xufton:** `{timings.get('Xufton')}`
+
+✅ *{res['city']} bo'yicha 5 vaqt namoz bugungi vazifalar doskangizga avtonom tarzda biriktirildi.*
+*Har bir namoz vaqti kelganda bot sizga eslatma yuboradi!*"""
+
+        keyboard = get_prayer_keyboard(current_city=city_name)
+        try:
+            await query.edit_message_text(text, reply_markup=keyboard, parse_mode="Markdown")
+        except Exception:
+            try:
+                await query.edit_message_text(text, reply_markup=keyboard)
+            except Exception as e:
+                logger.error(f"Prayer callback error: {e}")
 
 
 async def reminder_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -401,22 +464,65 @@ Ushbu kalendar fayli orqali barcha vazifalaringizni telefoningiz (iPhone / Andro
 
 
 async def namoz_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Samarqand namoz vaqtlarini ko'rsatish va kunlik tasklarga avtonom kiritish."""
+    """Namoz vaqtlarini ko'rsatish va kunlik tasklarga avtonom kiritish."""
     today_str = date.today().strftime("%Y-%m-%d")
-    timings = prayer_service.fetch_samarkand_prayer_times(today_str)
-    prayer_service.auto_schedule_samarkand_prayers(today_str)
+    city = "Samarqand"
+    if context.args:
+        city = " ".join(context.args).strip().capitalize()
 
-    text = f"""🕌 **Samarqand Shahri Uchun Namoz Vaqtlari ({today_str})**
+    res = prayer_service.fetch_prayer_times_by_location(city=city, target_date=today_str)
+    prayer_service.auto_schedule_samarkand_prayers(today_str, city=city)
+    timings = res["timings"]
+
+    text = f"""🕌 **{res['city']} Namoz Vaqtlari ({today_str})**
+⏳ **Keyingi namoz:** {res['next_prayer']} — *{res['remaining_text']} qoldi*
 
 🌅 **Bomdod:** `{timings.get('Bomdod')}`
-☀️ **Peshin:** `{timings.get('Peshin')}`
+☀️ **Quyosh:** `{timings.get('Quyosh')}`
+🟡 **Peshin:** `{timings.get('Peshin')}`
 ⛅ **Asr:** `{timings.get('Asr')}`
 🌇 **Shom:** `{timings.get('Shom')}`
 🌙 **Xufton:** `{timings.get('Xufton')}`
 
 ✅ *Barcha 5 vaqt namoz avtonom tarzda bugungi vazifalar doskangizga kiritildi.*
-*Har bir namoz vaqti yetganda bot sizga eslatma yuboradi hamda telefoningiz kalendarida 15 daqiqa oldin budilnik chaladi!*"""
-    await safe_reply(update, text)
+*Har bir namoz vaqti yetganda bot sizga eslatma yuboradi.*
+
+📍 *Boshqa shahar uchun quyidagi tugmalarni bosing yoki botga Telegram orqali lokatsiyangizni yuboring!*"""
+
+    keyboard = get_prayer_keyboard(current_city=city)
+    await safe_reply(update, text, reply_markup=keyboard)
+
+
+async def handle_location_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchi yuborgan GPS lokatsiya bo'yicha namoz vaqtlarini aniqlash va vazifalarga kiritish."""
+    if not update.message or not update.message.location:
+        return
+
+    lat = update.message.location.latitude
+    lon = update.message.location.longitude
+    today_str = date.today().strftime("%Y-%m-%d")
+
+    res = prayer_service.fetch_prayer_times_by_location(lat=lat, lon=lon, target_date=today_str)
+    prayer_service.auto_schedule_samarkand_prayers(today_str, lat=lat, lon=lon)
+    timings = res["timings"]
+
+    text = f"""📍 **GPS Joylashuvingiz Bo'yicha Namoz Vaqtlari!**
+🏢 Hudud: **{res['city']}** (Lat: {lat:.4f}, Lon: {lon:.4f})
+📅 Sana: `{today_str}`
+⏳ **Keyingi namoz:** {res['next_prayer']} — *{res['remaining_text']} qoldi*
+
+🌅 **Bomdod:** `{timings.get('Bomdod')}`
+☀️ **Quyosh:** `{timings.get('Quyosh')}`
+🟡 **Peshin:** `{timings.get('Peshin')}`
+⛅ **Asr:** `{timings.get('Asr')}`
+🌇 **Shom:** `{timings.get('Shom')}`
+🌙 **Xufton:** `{timings.get('Xufton')}`
+
+✅ *Joylashuvingizga mos 5 vaqt namoz bugungi vazifalar doskangizga avtonom tarzda biriktirildi!*"""
+
+    nearest_name, _ = prayer_service.find_nearest_city(lat, lon)
+    keyboard = get_prayer_keyboard(current_city=nearest_name)
+    await safe_reply(update, text, reply_markup=keyboard)
 
 
 async def app_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -426,16 +532,23 @@ async def app_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_reply(
             update,
             "⚠️ **Mini App havolasi hali sozlanmagan!**\n\n"
-            "Saytingizning Render bergan HTTPS havolasini botga yuboring:\n"
+            "Saytingiz havolasini botga yuboring:\n"
             "👉 `/set_url https://smart-task-ai-xxxx.onrender.com`\n\n"
             "Shundan so'ng pastdagi «📱 Ilova» tugmasi darhol faollashadi!"
         )
         return
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📱 SmartTask Ilovasini Ochish", web_app=WebAppInfo(url=url))]
+        [InlineKeyboardButton("📱 SmartTask Mini App (Ilova)", web_app=WebAppInfo(url=url))],
+        [InlineKeyboardButton("🌐 Brauzerda To'g'ridan-to'g'ri Ochish", url=url)]
     ])
-    await safe_reply(update, "SmartTask AI ilovasini Telegram oynasida ochish uchun pastdagi tugmani bosing:", reply_markup=keyboard)
+    await safe_reply(
+        update,
+        f"🚀 **SmartTask AI Ilovasi Tayyor!**\n\n"
+        f"🔗 Manzil: `{url}`\n\n"
+        f"Pastki chap burchakdagi **«📱 Ilova»** menyu tugmasini yoki quyidagi tugmalarni bosing:",
+        reply_markup=keyboard
+    )
 
 
 async def set_url_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -659,6 +772,7 @@ def main():
     app.add_handler(CommandHandler("set_url", set_url_command))
 
     app.add_handler(CallbackQueryHandler(handle_callback_query))
+    app.add_handler(MessageHandler(filters.LOCATION, handle_location_message))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 
     print("✅ Bot faol va bildirishnomalar tizimi ishlamoqda!")

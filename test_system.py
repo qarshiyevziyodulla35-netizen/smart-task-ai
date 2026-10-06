@@ -300,7 +300,7 @@ class TestSmartTaskAI(unittest.TestCase):
         client = TestClient(app)
         res = client.get("/api/prayer/timings")
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["city"], "Samarkand")
+        self.assertIn(res.json()["city"], ["Samarqand", "Samarkand"])
 
 
 if __name__ == "__main__":

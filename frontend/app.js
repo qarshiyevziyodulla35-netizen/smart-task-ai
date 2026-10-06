@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadTasks();
   checkSettingsStatus();
   initNotifications();
+  initPrayerWidget();
 });
 
 function initIcons() {
@@ -1836,4 +1837,205 @@ async function checkUpcomingTasksNotification() {
     console.error("Notif check error:", err);
   }
 }
+
+// ----------------------------------------------------
+// NAMOZ VAQTLARI & JOYLASHUV XIZMATI (PRAYER TIMES SERVICE)
+// ----------------------------------------------------
+let currentPrayerCity = localStorage.getItem('smarttask_prayer_city') || 'Samarqand';
+let currentPrayerCoords = null;
+let currentPrayerData = null;
+
+function initPrayerWidget() {
+  const citySelect = document.getElementById('prayer-city-select');
+  if (citySelect) {
+    citySelect.value = currentPrayerCity;
+  }
+  loadPrayerTimes(currentPrayerCity);
+
+  // Har 60 soniyada qolgan vaqt va keyingi namozni yangilab turish
+  setInterval(() => {
+    if (currentPrayerCoords) {
+      loadPrayerTimes(null, currentPrayerCoords.lat, currentPrayerCoords.lon, true);
+    } else {
+      loadPrayerTimes(currentPrayerCity, null, null, true);
+    }
+  }, 60000);
+}
+
+async function loadPrayerTimes(city = null, lat = null, lon = null, silent = false) {
+  try {
+    let url = '/api/prayer/timings';
+    const params = new URLSearchParams();
+    if (lat !== null && lon !== null) {
+      params.append('lat', lat);
+      params.append('lon', lon);
+    } else {
+      const selectedCity = city || currentPrayerCity || 'Samarqand';
+      params.append('city', selectedCity);
+    }
+    url += '?' + params.toString();
+
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const data = await res.json();
+    currentPrayerData = data;
+
+    // UI elementlarini yangilash
+    const locLabel = document.getElementById('prayer-location-label');
+    if (locLabel) {
+      locLabel.innerText = `Joylashuv: ${data.city}`;
+    }
+
+    const citySelect = document.getElementById('prayer-city-select');
+    if (citySelect && lat === null && lon === null) {
+      citySelect.value = data.city;
+    }
+
+    // Namoz vaqtlari matnlarini yangilash
+    const timings = data.timings || {};
+    const prayerKeys = ['Bomdod', 'Quyosh', 'Peshin', 'Asr', 'Shom', 'Xufton'];
+    prayerKeys.forEach(p => {
+      const el = document.getElementById(`prayer-time-${p}`);
+      if (el) {
+        el.innerText = timings[p] || '--:--';
+      }
+    });
+
+    // Keyingi namoz va qolgan vaqt bannerini yangilash
+    const nextNameEl = document.getElementById('prayer-next-name');
+    const countdownEl = document.getElementById('prayer-countdown-time');
+    if (nextNameEl) {
+      nextNameEl.innerText = data.next_prayer || 'Bomdod';
+    }
+    if (countdownEl) {
+      countdownEl.innerText = data.remaining_text || '--';
+    }
+
+    // Kartochkalarni aktivlashtirish (keyingi namozga vizual ta'kid berish)
+    prayerKeys.forEach(p => {
+      const card = document.getElementById(`prayer-card-${p}`);
+      if (card) {
+        if (data.next_prayer && data.next_prayer.startsWith(p)) {
+          card.classList.add('ring-2', 'ring-emerald-400', 'bg-emerald-500/20');
+        } else {
+          card.classList.remove('ring-2', 'ring-emerald-400', 'bg-emerald-500/20');
+        }
+      }
+    });
+
+    initIcons();
+  } catch (err) {
+    console.error("Prayer times load error:", err);
+  }
+}
+
+function handlePrayerCityChange() {
+  const citySelect = document.getElementById('prayer-city-select');
+  if (!citySelect) return;
+  const chosenCity = citySelect.value;
+  currentPrayerCity = chosenCity;
+  currentPrayerCoords = null;
+  localStorage.setItem('smarttask_prayer_city', chosenCity);
+  loadPrayerTimes(chosenCity);
+}
+
+function detectUserLocationForPrayer() {
+  const locLabel = document.getElementById('prayer-location-label');
+  const gpsBtn = document.getElementById('prayer-gps-btn');
+
+  if (!navigator.geolocation) {
+    alert("Brauzeringizda geolokatsiya (GPS) qo'llab-quvvatlanmaydi.");
+    return;
+  }
+
+  if (locLabel) locLabel.innerText = "GPS koordinatalar aniqlanmoqda...";
+  if (gpsBtn) {
+    gpsBtn.disabled = true;
+    gpsBtn.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin mr-1"></i> Aniqlanmoqda...`;
+    initIcons();
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      currentPrayerCoords = { lat, lon };
+      loadPrayerTimes(null, lat, lon);
+      if (gpsBtn) {
+        gpsBtn.disabled = false;
+        gpsBtn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400 mr-1"></i> Aniqlandi`;
+        initIcons();
+        setTimeout(() => {
+          gpsBtn.innerHTML = `<i data-lucide="navigation" class="w-3.5 h-3.5 text-cyan-300"></i> <span class="hidden sm:inline">GPS Joylashuv</span>`;
+          initIcons();
+        }, 3000);
+      }
+    },
+    (err) => {
+      console.warn("Geolocation error:", err);
+      if (locLabel) locLabel.innerText = `Joylashuv: ${currentPrayerCity} (GPS ruxsati berilmadi)`;
+      if (gpsBtn) {
+        gpsBtn.disabled = false;
+        gpsBtn.innerHTML = `<i data-lucide="navigation" class="w-3.5 h-3.5 text-cyan-300"></i> <span class="hidden sm:inline">GPS Joylashuv</span>`;
+        initIcons();
+      }
+      alert("GPS joylashuvni aniqlashga ruxsat berilmadi yoki xatolik yuz berdi. Samarqand yoki boshqa shaharni ro'yxatdan tanlashingiz mumkin.");
+    },
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+  );
+}
+
+async function syncPrayerTasksToBoard() {
+  const btn = document.getElementById('prayer-sync-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin mr-1"></i> Kiritilmoqda...`;
+    initIcons();
+  }
+
+  try {
+    const payload = {};
+    if (currentPrayerCoords) {
+      payload.lat = currentPrayerCoords.lat;
+      payload.lon = currentPrayerCoords.lon;
+    } else {
+      payload.city = currentPrayerCity || 'Samarqand';
+    }
+
+    const res = await fetch('/api/prayer/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      // Doskadagi vazifalarni darhol yangilash
+      await loadTasks();
+      await loadOverviewStats();
+
+      if (btn) {
+        btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 mr-1"></i> Saqlandi!`;
+        initIcons();
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = `<i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i> <span>Vazifalarga Kiritish</span>`;
+          initIcons();
+        }, 2500);
+      }
+      alert(`🕌 5 vaqt namoz vazifalari bugungi rejangizga muvaffaqiyatli kiritildi!\nHar bir namoz vaqti kelganda bildirishnoma beriladi.`);
+    } else {
+      throw new Error("Sinxronlashda xatolik");
+    }
+  } catch (err) {
+    console.error("Sync prayer error:", err);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i> <span>Vazifalarga Kiritish</span>`;
+      initIcons();
+    }
+    alert("Namoz vazifalarini kiritishda xatolik yuz berdi.");
+  }
+}
+
 

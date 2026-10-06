@@ -150,6 +150,136 @@
       </div>
     </div>
 
+    <!-- ONLINE PRAYER TIMES WIDGET (JOYLASHUV BO'YICHA NAMOZ VAQTLARI) -->
+    <div id="prayer-widget-box" class="bg-gradient-to-r from-emerald-900 via-teal-900 to-cyan-950 rounded-2xl p-4 sm:p-5 text-white shadow-md border border-emerald-700/40 relative overflow-hidden mb-6">
+      <div class="absolute -right-8 -top-8 w-40 h-40 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+      <div class="relative z-10 flex flex-col gap-4">
+        <!-- Header row: Title + Location Controls + Sync Button -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center border border-emerald-400/30">
+              <i data-lucide="compass" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="text-base font-bold text-white tracking-wide">Bugungi Namoz Vaqtlari</h3>
+                <span id="prayer-online-badge" class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-400/30 flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Online
+                </span>
+              </div>
+              <p id="prayer-location-label" class="text-xs text-emerald-200/80 font-medium mt-0.5">Joylashuv: Samarqand shahri</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- City Select -->
+            <div class="relative">
+              <select id="prayer-city-select" onchange="handlePrayerCityChange()" class="bg-black/30 text-white text-xs rounded-xl px-3 py-2 pr-8 border border-white/20 focus:outline-hidden focus:border-emerald-400 appearance-none cursor-pointer">
+                <option value="Samarqand">Samarqand</option>
+                <option value="Toshkent">Toshkent</option>
+                <option value="Buxoro">Buxoro</option>
+                <option value="Andijon">Andijon</option>
+                <option value="Namangan">Namangan</option>
+                <option value="Farg'ona">Farg'ona</option>
+                <option value="Qarshi">Qarshi</option>
+                <option value="Termiz">Termiz</option>
+                <option value="Xiva">Xiva</option>
+                <option value="Urganch">Urganch</option>
+                <option value="Nukus">Nukus</option>
+                <option value="Navoiy">Navoiy</option>
+                <option value="Jizzax">Jizzax</option>
+                <option value="Guliston">Guliston</option>
+                <option value="Qo'qon">Qo'qon</option>
+              </select>
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-white/60 absolute right-2.5 top-2.5 pointer-events-none"></i>
+            </div>
+
+            <!-- GPS Button -->
+            <button id="prayer-gps-btn" onclick="detectUserLocationForPrayer()" title="Mening GPS joylashuvimni aniqlash" class="flex items-center space-x-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-medium rounded-xl border border-white/20 transition-all cursor-pointer">
+              <i data-lucide="navigation" class="w-3.5 h-3.5 text-cyan-300"></i>
+              <span class="hidden sm:inline">GPS Joylashuv</span>
+            </button>
+
+            <!-- Sync to tasks button -->
+            <button id="prayer-sync-btn" onclick="syncPrayerTasksToBoard()" title="5 vaqt namozni bugungi vazifalar doskasiga avtomatik qo'shish" class="flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer">
+              <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i>
+              <span>Vazifalarga Kiritish</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Countdown Banner -->
+        <div id="prayer-countdown-banner" class="flex flex-col sm:flex-row sm:items-center justify-between bg-black/20 rounded-xl px-3.5 py-2 text-xs border border-white/10">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="clock" class="w-4 h-4 text-emerald-400"></i>
+            <span class="text-white/80">Keyingi namoz:</span>
+            <span id="prayer-next-name" class="font-bold text-emerald-300">Yuklanmoqda...</span>
+          </div>
+          <div class="flex items-center space-x-2 mt-1 sm:mt-0 font-medium">
+            <span class="text-white/70">Qolgan vaqt:</span>
+            <span id="prayer-countdown-time" class="text-cyan-300 font-bold tracking-wide">--:--</span>
+          </div>
+        </div>
+
+        <!-- Prayer Cards Grid (6 cards: Bomdod, Quyosh, Peshin, Asr, Shom, Xufton) -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5" id="prayer-cards-container">
+          <!-- Bomdod -->
+          <div id="prayer-card-Bomdod" class="prayer-timing-card bg-white/5 hover:bg-white/10 p-3 rounded-xl border border-white/10 transition-all flex flex-col items-center text-center">
+            <div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center mb-1.5">
+              <i data-lucide="moon" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs text-white/70 font-medium">Bomdod</span>
+            <span id="prayer-time-Bomdod" class="text-base font-bold text-white mt-0.5 font-mono">--:--</span>
+          </div>
+
+          <!-- Quyosh -->
+          <div id="prayer-card-Quyosh" class="prayer-timing-card bg-white/5 hover:bg-white/10 p-3 rounded-xl border border-white/10 transition-all flex flex-col items-center text-center">
+            <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center mb-1.5">
+              <i data-lucide="sunrise" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs text-white/70 font-medium">Quyosh</span>
+            <span id="prayer-time-Quyosh" class="text-base font-bold text-white mt-0.5 font-mono">--:--</span>
+          </div>
+
+          <!-- Peshin -->
+          <div id="prayer-card-Peshin" class="prayer-timing-card bg-white/5 hover:bg-white/10 p-3 rounded-xl border border-white/10 transition-all flex flex-col items-center text-center">
+            <div class="w-7 h-7 rounded-lg bg-yellow-500/20 text-yellow-300 flex items-center justify-center mb-1.5">
+              <i data-lucide="sun" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs text-white/70 font-medium">Peshin</span>
+            <span id="prayer-time-Peshin" class="text-base font-bold text-white mt-0.5 font-mono">--:--</span>
+          </div>
+
+          <!-- Asr -->
+          <div id="prayer-card-Asr" class="prayer-timing-card bg-white/5 hover:bg-white/10 p-3 rounded-xl border border-white/10 transition-all flex flex-col items-center text-center">
+            <div class="w-7 h-7 rounded-lg bg-orange-500/20 text-orange-300 flex items-center justify-center mb-1.5">
+              <i data-lucide="sunset" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs text-white/70 font-medium">Asr</span>
+            <span id="prayer-time-Asr" class="text-base font-bold text-white mt-0.5 font-mono">--:--</span>
+          </div>
+
+          <!-- Shom -->
+          <div id="prayer-card-Shom" class="prayer-timing-card bg-white/5 hover:bg-white/10 p-3 rounded-xl border border-white/10 transition-all flex flex-col items-center text-center">
+            <div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center mb-1.5">
+              <i data-lucide="cloud-sun" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs text-white/70 font-medium">Shom</span>
+            <span id="prayer-time-Shom" class="text-base font-bold text-white mt-0.5 font-mono">--:--</span>
+          </div>
+
+          <!-- Xufton -->
+          <div id="prayer-card-Xufton" class="prayer-timing-card bg-white/5 hover:bg-white/10 p-3 rounded-xl border border-white/10 transition-all flex flex-col items-center text-center">
+            <div class="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center mb-1.5">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs text-white/70 font-medium">Xufton</span>
+            <span id="prayer-time-Xufton" class="text-base font-bold text-white mt-0.5 font-mono">--:--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- AI NATURAL LANGUAGE TASK CREATION BAR -->
     <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 rounded-2xl p-4 sm:p-5 text-white shadow-md relative overflow-hidden">
       <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>

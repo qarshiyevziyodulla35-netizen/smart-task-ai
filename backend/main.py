@@ -580,21 +580,48 @@ def get_task_google_calendar_url(task_id: int):
     return {"task_id": task_id, "google_calendar_url": url}
 
 
-# ---------------- Samarqand Namoz Vaqtlari API ----------------
+# ---------------- Namoz Vaqtlari Online API (Joylashuv bo'yicha) ----------------
 @app.get("/api/prayer/timings")
-def get_prayer_timings(date_str: Optional[str] = Query(None, alias="date")):
+def get_prayer_timings(
+    city: Optional[str] = Query("Samarqand"),
+    lat: Optional[float] = Query(None),
+    lon: Optional[float] = Query(None),
+    date_str: Optional[str] = Query(None, alias="date")
+):
     target = date_str or date.today().strftime("%Y-%m-%d")
-    timings = prayer_service.fetch_samarkand_prayer_times(target)
-    return {"city": "Samarkand", "date": target, "timings": timings}
+    result = prayer_service.fetch_prayer_times_by_location(
+        city=city,
+        lat=lat,
+        lon=lon,
+        target_date=target
+    )
+    return result
+
+
+@app.get("/api/prayer/cities")
+def get_prayer_cities():
+    cities = list(prayer_service.UZBEKISTAN_CITIES.keys())
+    return {"cities": cities}
 
 
 @app.post("/api/prayer/sync")
-def sync_prayer_tasks(date_str: Optional[str] = Query(None, alias="date")):
+def sync_prayer_tasks(
+    city: Optional[str] = Query("Samarqand"),
+    lat: Optional[float] = Query(None),
+    lon: Optional[float] = Query(None),
+    date_str: Optional[str] = Query(None, alias="date")
+):
     target = date_str or date.today().strftime("%Y-%m-%d")
-    created = prayer_service.auto_schedule_samarkand_prayers(target)
+    tasks = prayer_service.auto_schedule_samarkand_prayers(
+        target_date=target,
+        city=city,
+        lat=lat,
+        lon=lon
+    )
     return {
-        "message": "Samarqand namoz vaqtlari avtonom sinxronlandi",
-        "created_count": len(created),
+        "message": "Namoz vaqtlari vazifalar ro'yxatiga muvaffaqiyatli sinxronlandi",
+        "city": city,
+        "count": len(tasks),
         "date": target
     }
 
