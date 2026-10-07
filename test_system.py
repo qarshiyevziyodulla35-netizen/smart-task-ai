@@ -302,6 +302,20 @@ class TestSmartTaskAI(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn(res.json()["city"], ["Samarqand", "Samarkand"])
 
+    def test_15_ping_health_endpoint(self):
+        client = TestClient(app)
+        res = client.get("/ping")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.text, "OK")
+        self.assertEqual(len(res.content), 2)
+
+        res_head = client.head("/ping")
+        self.assertEqual(res_head.status_code, 200)
+
+        res_health = client.get("/health")
+        self.assertEqual(res_health.status_code, 200)
+        self.assertEqual(res_health.text, "OK")
+
 
 if __name__ == "__main__":
     unittest.main()

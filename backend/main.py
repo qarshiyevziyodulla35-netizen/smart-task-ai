@@ -630,6 +630,19 @@ def sync_prayer_tasks(
 if os.path.exists(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
+# Ultra-yengil Health/Ping tekshiruvi (cron-job.org, UptimeRobot uchun - bor-yo'g'i 2 bayt)
+@app.get("/ping")
+@app.head("/ping")
+@app.get("/health")
+@app.head("/health")
+@app.get("/api/ping")
+def ping_health():
+    return Response(content="OK", media_type="text/plain")
+
+@app.head("/")
+def serve_head_index():
+    return Response(status_code=200)
+
 @app.get("/")
 def serve_index():
     index_path = os.path.join(FRONTEND_DIR, "index.html")
